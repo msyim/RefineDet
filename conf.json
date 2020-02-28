@@ -1,0 +1,10 @@
+{
+    "model_conf": {
+        "base": "vgg16",
+        "num_bbox": 5
+    },
+    "train_conf": {
+        "lr": 0.01,
+        "batch_size": 100
+    }
+}

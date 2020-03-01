@@ -7,8 +7,8 @@ class refine_det(nn.Module):
         super(refine_det, self).__init__()
         self.backbone = backbone
         self.ARM = ARM(model_conf['num_bbox'])
-        self.TCB = TCB()
-        self.ODM = ODM()
+        self.TCB = TCB([512,512,1024,512])
+        self.ODM = ODM(model_conf['num_bbox'], model_conf['num_classes'], 4)
 
     def forward(self, x):
 
@@ -20,26 +20,25 @@ class refine_det(nn.Module):
         # input  : feature maps(conv4_3, conv5_3) from the backbone network
         # output : (1) list of featuremaps (l2norm(conv4_3), l2norm(conv5_3), conv6_1 and conv6_2)
         #          (2) list of ARM location
-        featmap_list, armloc_list, armconf_list = self.ARM(conv4_3, conv5_3)
+        #          (3) list of ARM confidence
+        featmaps, arm_loc, arm_conf = self.ARM(conv4_3, conv5_3)
 
         # run through the TCB blocks
-        # input  : list of ARM outputs.
-        # output : list of TCB outputs.
-        TCB_outputs = self.TCB(featmap_list)
+        # input  : (1) list of featuremaps (l2norm(conv4_3), l2norm(conv5_3), conv6_1 and conv6_2)
+        # output : list of TCB outputs(refer to TCB module for details)
+        TCB_outputs = self.TCB(featmaps)
 
         # run through the ODM module
-        # input  : list of TCB outputs, list of refined anchors.
-        # output : list of ODM outputs. 
-        ODM_outputs = self.ODM(TCB_outputs)
+        # input  : list of TCB outputs
+        # output : list of odm locs and list of odm conf(class confidence)
+        odm_loc, odm_conf = self.ODM(TCB_outputs)
 
         # return ARM_outputs and ODM outputs to comput the loss
-        return featmap_list, ODM_outputs
+        return arm_loc, arm_conf, odm_loc, odm_conf
 
 
-'''
 import json
 model_conf = json.loads(open('conf.json').read())['model_conf']
 backbone = VGG16()
 model = refine_det(backbone, model_conf)
 print(model)
-'''

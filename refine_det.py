@@ -36,9 +36,10 @@ class refine_det(nn.Module):
         # return ARM_outputs and ODM outputs to comput the loss
         return arm_loc, arm_conf, odm_loc, odm_conf
 
-
+'''
 import json
 model_conf = json.loads(open('conf.json').read())['model_conf']
 backbone = VGG16()
 model = refine_det(backbone, model_conf)
 print(model)
+'''

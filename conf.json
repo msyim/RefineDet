@@ -7,5 +7,11 @@
     "train_conf": {
         "lr": 0.01,
         "batch_size": 100
+    },
+    "bbox_conf": {
+        "fm_widths": [64,32,16,8],
+        "image_size": 512,
+        "stride_steps": [8,16,32,64],
+        "aspect_ratios": [0.5,1.0,2.0]
     }
 }

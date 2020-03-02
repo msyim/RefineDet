@@ -22,24 +22,19 @@ class TCB(nn.Module):
 
         self.feat_scales = nn.ModuleList([ feature_scale(cs) for cs in channel_sizes ])
         self.pred_layers = nn.ModuleList([ pred_layer() for _ in channel_sizes ])
-        self.upsamples   = nn.ModuleList([ nn.ConvTranspose2d(256, 256, 2, 2) for _ in channel_sizes[:1] ])
+        self.upsamples   = nn.ModuleList([ nn.ConvTranspose2d(256, 256, 2, 2) for _ in channel_sizes[:-1] ])
 
     def forward(self, featmap_list):
 
         # apply feature scale layer to all 4 of the feature maps
-        scaled     = [ self.feat_scales[i](featmap) for i, featmap in enumerate(featmap_list) ]
+        scaled = [ self.feat_scales[i](featmap) for i, featmap in enumerate(featmap_list) ]
 
-        # upsample the last 3 of the feature scaled outputs
-        upsampled  = [ self.upsamples[i](s) for i, s in enumerate(scaled[1:]) ]
-
-        # apply element-wise sum to the upsampled with the first 3 of feature scaled
-        elwise_sum = [ scaled[i] + upsampled[i] for i in upsampled ]
-
-        # append the last element of scaled to elwise_sum list
-        elwise_sum.append(scaled[-1])
-
-        # apply pred layer to the elementwise sum
-        TCB_outputs = [ self.pred_layers(i)[s] for i,s in enumerate(elwise_sum) ]
+        # Starting from the last block, upsample and perform elementwise sum
+        # with the previous block
+        TCB_outputs = []
+        for i, b in enumerate(scaled[::-1]):
+            if i: TCB_outputs = [ self.upsamples[3-i](TCB_outputs[0]) + b ] + TCB_outputs
+            else: TCB_outputs.append(b)
 
         return TCB_outputs
 

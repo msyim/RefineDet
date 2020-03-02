@@ -27,7 +27,7 @@ class ARM(nn.Module):
         # Apply ARM conf
         conv4_3_conf = self.conv4_3_conf(conv4_3)
         conv5_3_conf = self.conv5_3_conf(conv5_3)
-        convfc7_conf = self.conv6_1_conf(conv_fc7)
+        convfc7_conf = self.convfc7_conf(conv_fc7)
         conv6_2_conf = self.conv6_2_conf(conv6_2)
 
         armloc_list  = [conv4_3_loc, conv5_3_loc, convfc7_loc, conv6_2_loc]

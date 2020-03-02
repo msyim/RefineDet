@@ -1,6 +1,7 @@
-from base_models import *
-from modules import *
+from base_models import VGG16
+from modules import ARM, ODM, TCB
 import torch.nn as nn
+import torch
 
 class refine_det(nn.Module):
     def __init__(self, backbone, model_conf):
@@ -13,20 +14,20 @@ class refine_det(nn.Module):
     def forward(self, x):
 
         # we first run the backbone network(VGG16) and extract
-        # the layers: conv4_3 and conv5_3
-        conv4_3, conv5_3 = self.backbone(x)
+        # the feature maps: conv4_3, conv5_3, conv_fc7, conv6_2
+        conv4_3, conv5_3, conv_fc7, conv6_2 = self.backbone(x)
 
         # run through the ARM module
-        # input  : feature maps(conv4_3, conv5_3) from the backbone network
+        # input  : feature maps(conv4_3, conv5_3, conv_fc7 and conf6_1) from the backbone network
         # output : (1) list of featuremaps (l2norm(conv4_3), l2norm(conv5_3), conv6_1 and conv6_2)
         #          (2) list of ARM location
         #          (3) list of ARM confidence
-        featmaps, arm_loc, arm_conf = self.ARM(conv4_3, conv5_3)
+        arm_loc, arm_conf = self.ARM(conv4_3, conv5_3, conv_fc7, conv6_2)
 
         # run through the TCB blocks
         # input  : (1) list of featuremaps (l2norm(conv4_3), l2norm(conv5_3), conv6_1 and conv6_2)
         # output : list of TCB outputs(refer to TCB module for details)
-        TCB_outputs = self.TCB(featmaps)
+        TCB_outputs = self.TCB([conv4_3, conv5_3, conv_fc7, conv6_2])
 
         # run through the ODM module
         # input  : list of TCB outputs
@@ -41,3 +42,5 @@ model_conf = json.loads(open('conf.json').read())['model_conf']
 backbone = VGG16()
 model = refine_det(backbone, model_conf)
 print(model)
+dummy = torch.rand([3,3,512,512])
+al, ac, ol, oc = model(dummy)

@@ -57,8 +57,8 @@ class VGG16(tnn.Module):
         out      = self.mp(self.conv2(out))
         out      = self.mp(self.conv3(out))
         conv4_3  = self.conv4(out)
-        conv5_3  = self.conv5(self.mp(out))
-        conv_fc7 = self.conf_fc7(conv5_3)
+        conv5_3  = self.conv5(self.mp(conv4_3))
+        conv_fc7 = self.conv_fc7(self.mp(conv5_3))
         conv6_2  = self.conv6_2(conv_fc7)
 
         return self.conv4_l2norm(conv4_3), self.conv5_l2norm(conv5_3), conv_fc7, conv6_2

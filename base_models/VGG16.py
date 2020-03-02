@@ -1,5 +1,6 @@
 import torch
 import torch.nn as tnn
+from layers import *
 import torch.nn.functional as F
 
 def conv_layer(c_in, c_out, k_size, p_size):
@@ -33,11 +34,34 @@ class VGG16(tnn.Module):
 
         self.mp    = tnn.MaxPool2d(kernel_size=2, stride=2)
 
-    def forward(self, x):
-        out     = self.mp(self.conv1(x))
-        out     = self.mp(self.conv2(out))
-        out     = self.mp(self.conv3(out))
-        conv4_3 = self.conv4(out)
-        conv5_3 = self.conv5(self.mp(out))
+        # L2Norm Layers to be applied on conv4_3 and conv5_3
+        self.conv4_l2norm = L2NormLayer(512, 8)
+        self.conv5_l2norm = L2NormLayer(512, 10)
 
-        return conv4_3, conv5_3 
+        # FC6 and FC7 in VGG are converted into conv layers
+        self.conv_fc7 = tnn.Sequential(
+            tnn.Conv2d(512,  1024, kernel_size=3, padding=3, dilation=3),
+            tnn.ReLU(),
+            tnn.Conv2d(1024, 1024, kernel_size=1),
+            tnn.ReLU()
+        )
+
+        # Extra layers(conv6_1 and conv6_2) added to capture high-level information
+        self.conv6_2  = tnn.Sequential(
+            tnn.Conv2d(1024, 256,  kernel_size=1),
+            tnn.ReLU(),
+            tnn.Conv2d(256,  512,  kernel_size=3, stride=2, padding=1),
+            tnn.ReLU()
+        )
+
+
+    def forward(self, x):
+        out      = self.mp(self.conv1(x))
+        out      = self.mp(self.conv2(out))
+        out      = self.mp(self.conv3(out))
+        conv4_3  = self.conv4(out)
+        conv5_3  = self.conv5(self.mp(out))
+        conv_fc7 = self.conf_fc7(conv5_3)
+        conv6_2  = self.conv6_2(conv_fc7)
+
+        return self.conv4_l2norm(conv4_3), self.conv5_l2norm(conv5_3), conv_fc7, conv6_2

@@ -1,7 +1,5 @@
-import torch
 import torch.nn as tnn
-from layers import *
-import torch.nn.functional as F
+from layers import L2NormLayer
 
 def conv_layer(c_in, c_out, k_size, p_size):
     layer = tnn.Sequential(
@@ -53,7 +51,6 @@ class VGG16(tnn.Module):
             tnn.Conv2d(256,  512,  kernel_size=3, stride=2, padding=1),
             tnn.ReLU()
         )
-
 
     def forward(self, x):
         out      = self.mp(self.conv1(x))

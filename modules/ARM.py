@@ -1,5 +1,4 @@
 import torch.nn as nn
-from layers import L2NormLayer
 
 class ARM(nn.Module):
     def __init__(self, num_bbox):

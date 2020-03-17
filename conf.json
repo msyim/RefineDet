@@ -1,7 +1,7 @@
 {
     "model_conf": {
         "base": "vgg16",
-        "num_bbox": 5,
+        "num_bbox": 3,
         "num_classes": 20
     },
     "train_conf": {
@@ -12,6 +12,10 @@
         "fm_widths": [64,32,16,8],
         "image_size": 512,
         "stride_steps": [8,16,32,64],
-        "aspect_ratios": [0.5,1.0,2.0]
+        "aspect_ratios": [0.5,1.0,2.0],
+        "threshold": 0.5
+    },
+    "dataset_conf": {
+        "dataset_root": "/Users/minsub/PycharmProjects/data/"
     }
 }

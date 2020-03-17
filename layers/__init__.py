@@ -1,2 +1,4 @@
-from .l2norm import L2NormLayer
-__all__ = [ 'L2NormLayer' ]
+from .L2Norm import L2NormLayer
+from .Loss import MultiBoxLoss
+
+__all__ = [ 'L2NormLayer', 'MultiBoxLoss' ]

@@ -1,7 +1,8 @@
 import torch.nn as nn
 import torch
+from utils import *
 
-def merge_list(tensor_list, num_classes = 2):
+def merge_list(tensor_list, num_classes):
     # Permute the tensors in the list so that each tensor has shape (batch, fmap_width, fmap_height, num_channels)
     output = [ t.permute(0,2,3,1).contiguous() for t in tensor_list]
     # Reshape the tensors in the list to have shape: (batch, fmap_width * fmap_height, num_channels)
@@ -25,6 +26,7 @@ class MultiBoxLoss(nn.Module):
         odm_loc  = merge_list(odm_loc, 4)
         odm_conf = merge_list(odm_conf, 2)
 
-        # 2.
+        # 2. Get anchors(prior boxes)
+        anchors = get_anchors()
 
 

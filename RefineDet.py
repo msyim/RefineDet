@@ -3,6 +3,10 @@ from modules import ARM, ODM, TCB
 import torch.nn as nn
 import torch
 
+## test
+from utils import SSDAugmentation, VOCDetection
+import torch.utils.data as data
+
 class refine_det(nn.Module):
     def __init__(self, backbone, model_conf):
         super(refine_det, self).__init__()
@@ -37,10 +41,41 @@ class refine_det(nn.Module):
         # return ARM_outputs and ODM outputs to comput the loss
         return arm_loc, arm_conf, odm_loc, odm_conf
 
+def detection_collate(batch):
+    """Custom collate fn for dealing with batches of images that have a different
+    number of associated object annotations (bounding boxes).
+    Arguments:
+        batch: (tuple) A tuple of tensor images and lists of annotations
+    Return:
+        A tuple containing:
+            1) (tensor) batch of images stacked on their 0 dim
+            2) (list of tensors) annotations for a given image are stacked on
+                                 0 dim
+    """
+    targets = []
+    imgs = []
+    for sample in batch:
+        imgs.append(sample[0])
+        targets.append(torch.FloatTensor(sample[1]))
+    return torch.stack(imgs, 0), targets
+
 import json
 model_conf = json.loads(open('conf.json').read())['model_conf']
 backbone = VGG16()
 model = refine_det(backbone, model_conf)
-print(model)
-dummy = torch.rand([3,3,512,512])
-al, ac, ol, oc = model(dummy)
+#print(model)
+#dummy = torch.rand([3,3,512,512])
+#al, ac, ol, oc = model(dummy)
+dataset = VOCDetection(root='/Users/minsub/PycharmProjects/data', transform=SSDAugmentation(512))
+dl = data.DataLoader(dataset = dataset, collate_fn=detection_collate, batch_size=5, shuffle=True)
+for x, y in dl:
+    al, ac, ol, oc = model(x)
+    al_temp = torch.cat([t.permute(0,2,3,1).contiguous().view(t.size()[0], -1, 4) for t in al], dim=1)
+    print(al_temp.size())
+    print("al shape:", al[0].size())
+    print("ac shape:", ac[0].size())
+    print("ol shape:", ol[0].size())
+    print("oc shape:", oc[0].size())
+    print(y)
+    break
+

@@ -4,7 +4,7 @@ from layers import L2NormLayer
 def conv_layer(c_in, c_out, k_size, p_size):
     layer = tnn.Sequential(
         tnn.Conv2d(c_in, c_out, kernel_size=k_size, padding=p_size),
-        tnn.ReLU()
+        tnn.ReLU(inplace=True)
     )
     return layer
 
@@ -39,17 +39,17 @@ class VGG16(tnn.Module):
         # FC6 and FC7 in VGG are converted into conv layers
         self.conv_fc7 = tnn.Sequential(
             tnn.Conv2d(512,  1024, kernel_size=3, padding=3, dilation=3),
-            tnn.ReLU(),
+            tnn.ReLU(inplace=True),
             tnn.Conv2d(1024, 1024, kernel_size=1),
-            tnn.ReLU()
+            tnn.ReLU(inplace=True)
         )
 
         # Extra layers(conv6_1 and conv6_2) added to capture high-level information
         self.conv6_2  = tnn.Sequential(
             tnn.Conv2d(1024, 256,  kernel_size=1),
-            tnn.ReLU(),
+            tnn.ReLU(inplace=True),
             tnn.Conv2d(256,  512,  kernel_size=3, stride=2, padding=1),
-            tnn.ReLU()
+            tnn.ReLU(inplace=True)
         )
 
     def forward(self, x):

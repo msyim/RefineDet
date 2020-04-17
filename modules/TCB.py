@@ -3,16 +3,16 @@ import torch.nn as nn
 def feature_scale(input_channel):
     layer = nn.Sequential(
         nn.Conv2d(input_channel, 256, kernel_size=3, padding=1),
-        nn.ReLU(),
+        nn.ReLU(inplace=True),
         nn.Conv2d(256, 256, kernel_size=3, padding=1)
     )
     return layer
 
 def pred_layer():
     layer = nn.Sequential(
-        nn.ReLU(),
+        nn.ReLU(inplace=True),
         nn.Conv2d(256, 256, kernel_size=3, padding=1),
-        nn.ReLU()
+        nn.ReLU(inplace=True)
     )
     return layer
 

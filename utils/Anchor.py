@@ -2,7 +2,7 @@ from itertools import product
 import torch
 from math import sqrt
 
-def get_anchors(bbox_config):
+def get_anchors(bbox_config, cuda=True):
 
     fm_widths     = bbox_config['fm_widths']
     image_size    = bbox_config['image_size']
@@ -21,4 +21,4 @@ def get_anchors(bbox_config):
 
     anchors = torch.Tensor(anchors).view(-1, 4)
 
-    return anchors
+    return anchors.cuda() if cuda else anchors

@@ -2,26 +2,33 @@ from base_models import VGG16
 import torch
 
 ## test
-from utils import SSDAugmentation, VOCDetection, detection_collate
+from utils import SSDAugmentation, VOCDetection, VOCAnnotationTransform, detection_collate, get_anchors, BaseTransform
 from layers import MultiBoxLoss
+from test import test_net
 import torch.utils.data as data
 
 from RefineDet import refine_det
 
 import json
+import sys
+
 conf = json.loads(open('conf.json').read())
-model_conf = conf['model_conf']
 bbox_conf  = conf['bbox_conf']
 train_conf = conf['train_conf']
 backbone = VGG16()
-model = refine_det(backbone, model_conf).cuda()
+model = refine_det(backbone, conf).cuda()
 #model.weight_initialize()
 print(model)
 
 dataset = VOCDetection(root='../../data/VOCdevkit/', transform=SSDAugmentation(512))
+testset = VOCDetection('../../data/VOCdevkit/', [('2007', 'test')],
+                           BaseTransform(bbox_conf['image_size'], mean = (104, 117, 123)),
+                           VOCAnnotationTransform())
 dl = data.DataLoader(dataset = dataset, collate_fn=detection_collate, batch_size=12, shuffle=True)
 criterion = MultiBoxLoss(conf)
 optimizer = torch.optim.SGD(params = model.parameters(), momentum=train_conf['momentum'], weight_decay = train_conf['weight_decay'], lr = train_conf['lr'])
+
+max_map = 0.0
 
 model.train()
 for epoch in range(train_conf['num_epochs']):
@@ -41,12 +48,21 @@ for epoch in range(train_conf['num_epochs']):
         t_oll += odm_loss_loc.data
         t_olc += odm_loss_conf.data
         t_loss += loss.data
-
-        #if num_itrs % 10 == 0:
-        print("[E: %03d][I: %05d] LOSS: %.4f(ALL: %.4f, ACL: %.4f, OLL: %.4f, OCL: %.4f)" 
-                    %(epoch, num_itrs, t_loss/num_itrs, t_all/num_itrs, t_alc/num_itrs, t_oll/num_itrs, t_olc/num_itrs))
-
         loss.backward()
         optimizer.step()
         num_itrs += 1
+
+        sys.stdout.write("\r[E: %03d][I: %05d] LOSS: %.4f(ALL: %.4f, ACL: %.4f, OLL: %.4f, OCL: %.4f)" 
+                    %(epoch, num_itrs, t_loss/num_itrs, t_all/num_itrs, t_alc/num_itrs, t_oll/num_itrs, t_olc/num_itrs))
+
+    sys.stdout.write('\n')
+    model.eval()
+    with torch.no_grad():
+        MAP = test_net(model, testset, anchors=get_anchors(bbox_conf))
+        if MAP > max_map:
+            max_map = MAP
+            torch.save(model.state_dict(), './saved_models/best_accuracy.pth')
+        print('Best MAP: %f, cur MAP: %f' % (max_map, MAP))
+    model.train()
+
 

@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 
 def point_form(boxes):
@@ -109,6 +110,31 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     loc_t[idx] = loc    # [num_priors,4] encoded offsets to learn
     conf_t[idx] = conf  # [num_priors] top class label for each prior
 
+def match_boxes(threshold, targets, anchors, variances, num_classes, arm_loc, mode):
+
+    num = len(targets)
+    num_priors = anchors.size(0)
+
+    loc_t = torch.Tensor(num, num_priors, 4)
+    conf_t = torch.LongTensor(num, num_priors)
+    for idx in range(num):
+        truths = targets[idx][:, :-1].data
+        labels = targets[idx][:, -1].data
+        if num_classes == 2:
+            labels = labels >= 0
+        defaults = anchors.data
+        if mode == "ODM":
+            refine_match(threshold, truths, defaults, variances, labels,
+                loc_t, conf_t, idx, arm_loc[idx].data)
+        else:
+            refine_match(threshold, truths, defaults, variances, labels,
+                loc_t, conf_t, idx)
+
+    loc_t = loc_t.cuda()
+    conf_t = conf_t.cuda()
+
+    return loc_t, conf_t
+
 def refine_match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx, arm_loc=None):
     """Match each arm bbox with the ground truth box of the highest jaccard
     overlap, encode the bounding boxes, then return the matched indices
@@ -202,3 +228,113 @@ def decode(loc, priors, variances):
     boxes[:, :2] -= boxes[:, 2:] / 2
     boxes[:, 2:] += boxes[:, :2]
     return boxes
+
+def log_sum_exp(x):
+    """Utility function for computing log_sum_exp while determining
+    This will be used to determine unaveraged confidence loss across
+    all examples in a batch.
+    Args:
+        x (Variable(tensor)): conf_preds from conf layers
+    """
+    x_max = x.data.max()
+    return torch.log(torch.sum(torch.exp(x-x_max), 1, keepdim=True)) + x_max
+
+def nms(boxes, scores, overlap=0.5, top_k=200):
+    """Apply non-maximum suppression at test time to avoid detecting too many
+    overlapping bounding boxes for a given object.
+    Args:
+        boxes: (tensor) The location preds for the img, Shape: [num_priors,4].
+        scores: (tensor) The class predscores for the img, Shape:[num_priors].
+        overlap: (float) The overlap thresh for suppressing unnecessary boxes.
+        top_k: (int) The Maximum number of box preds to consider.
+    Return:
+        The indices of the kept boxes with respect to num_priors.
+    """
+
+    keep = scores.new(scores.size(0)).zero_().long()
+    if boxes.numel() == 0:
+        return keep
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+    area = torch.mul(x2 - x1, y2 - y1)
+    v, idx = scores.sort(0)  # sort in ascending order
+    # I = I[v >= 0.01]
+    idx = idx[-top_k:]  # indices of the top-k largest vals
+    xx1 = boxes.new()
+    yy1 = boxes.new()
+    xx2 = boxes.new()
+    yy2 = boxes.new()
+    w = boxes.new()
+    h = boxes.new()
+
+    # keep = torch.Tensor()
+    count = 0
+    while idx.numel() > 0:
+        i = idx[-1]  # index of current largest val
+        # keep.append(i)
+        keep[count] = i
+        count += 1
+        if idx.size(0) == 1:
+            break
+        idx = idx[:-1]  # remove kept element from view
+        # load bboxes of next highest vals
+        torch.index_select(x1, 0, idx, out=xx1)
+        torch.index_select(y1, 0, idx, out=yy1)
+        torch.index_select(x2, 0, idx, out=xx2)
+        torch.index_select(y2, 0, idx, out=yy2)
+        # store element-wise max with next highest score
+        xx1 = torch.clamp(xx1, min=x1[i])
+        yy1 = torch.clamp(yy1, min=y1[i])
+        xx2 = torch.clamp(xx2, max=x2[i])
+        yy2 = torch.clamp(yy2, max=y2[i])
+        w.resize_as_(xx2)
+        h.resize_as_(yy2)
+        w = xx2 - xx1
+        h = yy2 - yy1
+        # check sizes of xx1 and xx2.. after each iteration
+        w = torch.clamp(w, min=0.0)
+        h = torch.clamp(h, min=0.0)
+        inter = w*h
+        # IoU = i / (area(a) + area(b) - i)
+        rem_areas = torch.index_select(area, 0, idx)  # load remaining areas)
+        union = (rem_areas - inter) + area[i]
+        IoU = inter/union  # store result in iou
+        # keep only elements with an IoU <= overlap
+        idx = idx[IoU.le(overlap)]
+    return keep, count
+
+
+def nms_cpu(boxes, scores, overlap_threshold=0.5, min_mode=False):
+    boxes = boxes.cpu().numpy()
+    scores = scores.cpu().numpy()
+
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    order = scores.argsort()[::-1]
+
+    keep = []
+    while order.size > 0:
+        keep.append(order[0])
+        xx1 = np.maximum(x1[order[0]], x1[order[1:]])
+        yy1 = np.maximum(y1[order[0]], y1[order[1:]])
+        xx2 = np.minimum(x2[order[0]], x2[order[1:]])
+        yy2 = np.minimum(y2[order[0]], y2[order[1:]])
+
+        w = np.maximum(0.0, xx2 - xx1 + 1)
+        h = np.maximum(0.0, yy2 - yy1 + 1)
+        inter = w * h
+
+        if min_mode:
+            ovr = inter / np.minimum(areas[order[0]], areas[order[1:]])
+        else:
+            ovr = inter / (areas[order[0]] + areas[order[1:]] - inter)
+
+        inds = np.where(ovr <= overlap_threshold)[0]
+        order = order[inds + 1]
+    return keep

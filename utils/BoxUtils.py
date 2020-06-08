@@ -306,7 +306,7 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
     return keep, count
 
 
-def nms_cpu(boxes, scores, overlap_threshold=0.5, min_mode=False):
+def nms_cpu(boxes, scores, overlap_threshold=0.5, min_mode=False, top_k=1000):
     boxes = boxes.cpu().numpy()
     scores = scores.cpu().numpy()
 
@@ -315,8 +315,8 @@ def nms_cpu(boxes, scores, overlap_threshold=0.5, min_mode=False):
     x2 = boxes[:, 2]
     y2 = boxes[:, 3]
 
-    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
-    order = scores.argsort()[::-1]
+    areas = (x2 - x1) * (y2 - y1)
+    order = scores.argsort()[::-1][:top_k]
 
     keep = []
     while order.size > 0:
@@ -326,8 +326,9 @@ def nms_cpu(boxes, scores, overlap_threshold=0.5, min_mode=False):
         xx2 = np.minimum(x2[order[0]], x2[order[1:]])
         yy2 = np.minimum(y2[order[0]], y2[order[1:]])
 
-        w = np.maximum(0.0, xx2 - xx1 + 1)
-        h = np.maximum(0.0, yy2 - yy1 + 1)
+        w = np.maximum(0.0, xx2 - xx1)
+        h = np.maximum(0.0, yy2 - yy1)
+
         inter = w * h
 
         if min_mode:

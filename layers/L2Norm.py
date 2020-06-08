@@ -10,7 +10,9 @@ class L2NormLayer(nn.Module):
         self.eps = 1e-10
 
     def forward(self, feature_map):
-        norm   = feature_map.pow(2).sum(dim=1, keepdim=True).sqrt() + self.eps
+        #norm   = feature_map.pow(2).sum(dim=1, keepdim=True).sqrt() + self.eps
+        norm   = feature_map.pow(2).sum(dim=1, keepdim=True)
+        norm   = torch.sqrt(norm + self.eps)
         normed = torch.div(feature_map, norm)
         output = self.weight.unsqueeze(0).unsqueeze(2).unsqueeze(3).expand_as(normed) * normed
         return output

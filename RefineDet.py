@@ -14,7 +14,7 @@ class refine_det(nn.Module):
         self.det_conf   = conf['det_conf']
         self.backbone = backbone
         self.ARM = ARM(self.model_conf['num_bbox'])
-        self.TCB = TCB([512,512,1024,512])
+        self.TCB = TCB(self.model_conf['tcb_channels'])
         self.ODM = ODM(self.model_conf['num_bbox'], self.model_conf['num_classes'], 4)
 
         # detection purposes

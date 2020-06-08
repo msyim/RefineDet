@@ -2,31 +2,33 @@
     "model_conf": {
         "base": "vgg16",
         "num_bbox": 3,
-        "num_classes": 21
+        "num_classes": 21,
+        "tcb_channels": [512,512,1024,512]
     },
     "train_conf": {
+        "trained_weights":"./saved_models/best_accuracy.pth",
         "lr": 0.001,
         "batch_size": 14,
-	"weight_decay": 5e-4,
-	"momentum": 0.9,
-	"num_epochs": 100
+	    "weight_decay": 5e-4,
+	    "momentum": 0.9,
+	    "num_epochs": 100000
     },
     "bbox_conf": {
         "fm_widths": [64,32,16,8],
         "image_size": 512,
         "stride_steps": [8,16,32,64],
         "aspect_ratios": [0.5,1.0,2.0],
-	"variance": [0.1, 0.2],
+	    "variance": [0.1, 0.2],
         "threshold": 0.5
     },
     "dataset_conf": {
-        "dataset_root": "../../data/"
+        "dataset_root": "/home/user/data/VOCdevkit/"
     },
     "det_conf":{
-	"conf_threshold": 0.01,
-	"obj_threshold": 0.01,
-	"nms_threshold": 0.45,
-	"top_k": 1000,
-	"keep_top_k": 500
+	    "conf_threshold": 0.01,
+	    "obj_threshold": 0.01,
+	    "nms_threshold": 0.45,
+	    "top_k": 1000,
+	    "keep_top_k": 500
     }
 }
